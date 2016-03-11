@@ -47,6 +47,10 @@ function resultGUI = matRad_fluenceOptimization(dij,cst,pln,visBool,varargin)
 %
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+if nargin < 4
+    visBool = 0;
+end
+
 % intial fluence profile = uniform bixel intensities
 wInit = ones(dij.totalNumOfBixels,1);
 
@@ -81,7 +85,12 @@ if strcmp(pln.bioOptimization,'effect') || strcmp(pln.bioOptimization,'RBExD') .
                                         
                 error([cst{i,6}(j).type ' objective not supported ' ...
                     'during biological optimization for carbon ions']);
-           
+            end
+            if strcmp(cst{i,6}(j).type,'square underdosing') || ...
+               strcmp(cst{i,6}(j).type,'square deviation')
+                if cst{i,6}(j).parameter(2) > 30
+                    warning('Prescribed fraction dose > 30Gy. Biological optimization outside the valid domain of the base data.');
+                end
             end
         end
         
@@ -148,18 +157,15 @@ if strcmp(pln.bioOptimization,'effect') || strcmp(pln.bioOptimization,'RBExD') .
     resultGUI.effect = (dij.mAlphaDose*resultGUI.w+(dij.mSqrtBetaDose*resultGUI.w).^2);
     resultGUI.effect = reshape(resultGUI.effect,dij.dimensions);
     
-    resultGUI.RBExDose = ((sqrt(a_x.^2 + 4 .* b_x .* resultGUI.effect) - a_x)./(2.*b_x));
-    
+    resultGUI.RBExDose = zeros(size(resultGUI.effect));
+    ix = resultGUI.effect>0;
+    resultGUI.RBExDose(ix) = ((sqrt(a_x(ix).^2 + 4 .* b_x(ix) .* resultGUI.effect(ix)) - a_x(ix))./(2.*b_x(ix)));
     resultGUI.RBE = resultGUI.RBExDose./resultGUI.physicalDose;
-    
-    % a different way to calculate RBE is as follows - leads to the same
-    %resultGUI.RBE = ((sqrt(a_x.^2 + 4 .* b_x .* resultGUI.effect) - a_x)./(2.*b_x.*resultGUI.physicalDose));
-    %resultGUI.RBE= reshape(resultGUI.RBE,dij.dimensions);
-      
-    resultGUI.alpha = (dij.mAlphaDose.*spfun(@(x)1./x,dij.physicalDose)) * resultGUI.w;
-    resultGUI.alpha = reshape(resultGUI.alpha,dij.dimensions);
-    resultGUI.beta = ( (dij.mSqrtBetaDose.*spfun(@(x)1./x,dij.physicalDose)) * resultGUI.w ).^2;
-    resultGUI.beta = reshape(resultGUI.beta,dij.dimensions);
+   
+    AlphaDoseCube    = dij.mAlphaDose * resultGUI.w;
+    resultGUI.alpha  = (reshape(AlphaDoseCube,dij.dimensions))./resultGUI.physicalDose;
+    SqrtBetaDoseCube = dij.mSqrtBetaDose * resultGUI.w;
+    resultGUI.beta   = ((reshape(SqrtBetaDoseCube,dij.dimensions))./resultGUI.physicalDose).^2;
     
     fprintf(' done!\n');
     

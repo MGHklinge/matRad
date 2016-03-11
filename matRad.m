@@ -26,9 +26,9 @@
 %
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
- clear
- close all
- clc
+clear
+close all
+clc
 
 % load patient data, i.e. ct, voi, cst
 
@@ -39,7 +39,6 @@ load HEAD_AND_NECK
 %load BOXPHANTOM.mat
 
 % meta information for treatment plan
-pln.SAD             = 1000; %[mm]
 pln.isoCenter       = matRad_getIsoCenter(cst,ct,0);
 pln.bixelWidth      = 5; % [mm] / also corresponds to lateral spot spacing for particles
 pln.gantryAngles    = [0:72:359]; % [°]
@@ -52,6 +51,7 @@ pln.bioOptimization = 'none'; % none: physical optimization; effect: effect-base
 pln.numOfFractions  = 1;
 pln.runSequencing   = true; % 1/true: run sequencing, 0/false: don't / will be ignored for particles and also triggered by runDAO below
 pln.runDAO          = true; % 1/true: run DAO, 0/false: don't / will be ignored for particles
+pln.machine         = 'Generic';
 
 %% initial visualization and change objective function settings if desired
 matRadGUI
@@ -61,13 +61,13 @@ stf = matRad_generateStf(ct,cst,pln);
 
 %% dose calculation
 if strcmp(pln.radiationMode,'photons')
-    dij = matRad_calcPhotonDose(ct,stf,pln,cst,0);
+    dij = matRad_calcPhotonDose(ct,stf,pln,cst);
 elseif strcmp(pln.radiationMode,'protons') || strcmp(pln.radiationMode,'carbon')
-    dij = matRad_calcParticleDose(ct,stf,pln,cst,0);
+    dij = matRad_calcParticleDose(ct,stf,pln,cst);
 end
 
 %% inverse planning for imrt
-resultGUI = matRad_fluenceOptimization(dij,cst,pln,0);
+resultGUI = matRad_fluenceOptimization(dij,cst,pln);
 
 %% sequencing
 if strcmp(pln.radiationMode,'photons') && (pln.runSequencing || pln.runDAO)
@@ -77,7 +77,7 @@ end
 
 %% DAO
 if strcmp(pln.radiationMode,'photons') && pln.runDAO
-   resultGUI = matRad_directApertureOptimization(dij,cst,resultGUI.apertureInfo,resultGUI,1);
+   resultGUI = matRad_directApertureOptimization(dij,cst,resultGUI.apertureInfo,resultGUI,pln);
    matRad_visApertureInfo(resultGUI.apertureInfo);
 end
 
